@@ -1,3 +1,4 @@
+//--------- LIBRERIAS ---------//
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -6,30 +7,41 @@
 #include <netinet/in.h>
 #include <pthread.h>
 
+//--------- CONSTANTES ---------//
 #define PORT 8080
 #define MAX_CLIENTS 10
 #define BUFFER_SIZE 1024
 #define MAX_MESSAGES 100
 #define MESSAGE_SIZE 256
 
+//--------- ESTRUCTURAS ---------//
+//Mensaje publico con nombre de usuario y mensaje
 typedef struct {
     char username[50];
     char message[MESSAGE_SIZE];
 } PublicMessage;
 
+//Cliente con nombre de usuario y socket asociado
 typedef struct {
     char username[50];
     int socket;
 } Client;
 
+//Recuento de clientes y mensajes publicos
 Client clients[MAX_CLIENTS];
 int num_clients = 0;
 
 PublicMessage public_messages[MAX_MESSAGES];
 int num_public_messages = 0;
 
+
+//Declaracion de Mutex para manejar concurrencia
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
+
+//--------- FUNCIONES ---------//
+//Funcion para enviar mensaje publico, acceso exclusivo a la lista de mensajes públicos utilizando un mutex
+//Si la lista no está llena, agrega el mensaje; de lo contrario, implementa un mecanismo de reemplazo de mensajes más antiguos.
 void send_public_message(char *message, char *username) {
     pthread_mutex_lock(&mutex);
 
@@ -53,6 +65,8 @@ void send_public_message(char *message, char *username) {
     pthread_mutex_unlock(&mutex);
 }
 
+//Funcion para enviar mensajes publicos a un cliente
+//Envía mensajes públicos almacenados al cliente especificado por su socket. Utiliza el mutex tambien.
 void send_public_messages_to_client(int client_socket) {
     pthread_mutex_lock(&mutex);
 
@@ -69,6 +83,10 @@ void send_public_messages_to_client(int client_socket) {
     pthread_mutex_unlock(&mutex);
 }
 
+//Funcion para manejar clientes, se ejecuta en un hilo separado para cada cliente conectado al servidor
+//Recibe el nombre de usuario del cliente y lo agrega a la lista de clientes conectados
+//Recibe comandos del cliente y los procesa
+//Si el cliente se desconecta, elimina el cliente de la lista de clientes conectados y limpia recursos
 void *handle_client(void *arg) {
     int client_socket = *((int *)arg);
     char username[BUFFER_SIZE];
@@ -93,6 +111,7 @@ void *handle_client(void *arg) {
         } else {
             printf("Invalid command from client '%s'. Use PUBLIC to send a message or VIEW to see public messages.\n", username);
         }
+        //Limpiar el buffer
         memset(buffer, 0, BUFFER_SIZE);
     }
 
@@ -114,6 +133,9 @@ void *handle_client(void *arg) {
     pthread_exit(NULL);
 }
 
+//--------- MAIN ---------//
+//Funcion principal, crea el socket del servidor y acepta conexiones de clientes
+//Crea un hilo separado para cada cliente conectado
 int main() {
     int server_fd, new_socket;
     struct sockaddr_in address;

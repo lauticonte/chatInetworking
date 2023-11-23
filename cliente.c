@@ -1,39 +1,44 @@
+//--------- LIBRERIAS ---------//
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <arpa/inet.h>
 
+//--------- CONSTANTES ---------//
 #define SERVER_IP "127.0.0.1"
 #define PORT 8080
 #define BUFFER_SIZE 1024
 
-// ANSI color codes
+//--------- ANSI COLOR CODES ---------//
 #define COLOR_RED "\x1b[31m"
 #define COLOR_GREEN "\x1b[32m"
 #define COLOR_YELLOW "\x1b[33m"
 #define COLOR_CYAN "\x1b[36m"
 #define COLOR_RESET "\x1b[0m"
 
-void print_colored_message(const char *message, const char *color)
-{
-    printf("%s%s%s", color, message, COLOR_RESET);
-}
 
+//--------- MAIN ---------//
 int main()
 {
     int sock = 0;
     struct sockaddr_in serv_addr;
 
+    //Crear socket, AF INET para IPv4, SOCK STREAM para TCP, 0 para protocolo IP
     if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
     {
         perror("Socket creation error");
         return -1;
     }
 
+
+    //Configurar la direccion del servidor, serv_addr es una estructura de tipo sockaddr_in que contiene la direccion del servidor
+    //Familia de direcciones, en este caso IPv4
+    //Puerto, htons convierte el numero de puerto al orden de bytes de la red
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(PORT);
 
+    //Direccion IP, inet_pton convierte la direccion IP de texto a binario
     if (inet_pton(AF_INET, SERVER_IP, &serv_addr.sin_addr) <= 0)
     {
         perror("Invalid address / Address not supported");
@@ -48,14 +53,17 @@ int main()
 
     printf("%sConnected to server%s\n", COLOR_GREEN, COLOR_RESET);
 
+    //Inicia el chat, el cliente debe enviar su nombre de usuario al servidor
     printf("Enter your username: ");
     char username[BUFFER_SIZE];
     fgets(username, BUFFER_SIZE, stdin);
     username[strcspn(username, "\n")] = '\0';
+    //send para enviar el nombre de usuario al servidor, strlen para enviar el tamaño del nombre de usuario
     send(sock, username, strlen(username), 0);
 
     char buffer[BUFFER_SIZE];
 
+    //Menu de opciones
     while (1)
     {
         printf("\033[2J\033[H"); // Limpiar la pantalla
@@ -74,12 +82,15 @@ int main()
         {
         case 1:
         {
+            //El cliente debe enviar el mensaje al servidor en el formato "PUBLIC mensaje"
+            //El servidor debe recibir el mensaje y enviarlo a todos los clientes conectados en el formato "username: mensaje"
             printf("\n%s----- Send Public Message -----%s\n", COLOR_CYAN, COLOR_RESET);
             printf("Enter message to send publicly: ");
-            char message[BUFFER_SIZE];
-            fgets(message, BUFFER_SIZE, stdin);
-            message[strcspn(message, "\n")] = '\0';
+            char message[BUFFER_SIZE]; // Buffer para almacenar el mensaje
+            fgets(message, BUFFER_SIZE, stdin); // fgets para leer el mensaje del usuario
+            message[strcspn(message, "\n")] = '\0'; // Eliminar el salto de linea del mensaje
 
+            //public_message es el mensaje que se envia al servidor, en el formato "PUBLIC mensaje"
             char public_message[BUFFER_SIZE];
             snprintf(public_message, BUFFER_SIZE, "PUBLIC %s", message);
 
@@ -91,7 +102,12 @@ int main()
         }
 
         case 2:
+
         {
+            //El cliente debe enviar el comando "VIEW" al servidor, el servidor debe enviar todos los mensajes publicos al cliente
+            //El cliente debe recibir los mensajes y mostrarlos en la pantalla
+            //El servidor debe enviar el mensaje "END_PUBLIC_MESSAGES" al cliente cuando no hay mas mensajes para enviar
+            //El cliente debe mostrar el mensaje "No more messages" cuando recibe el mensaje "END_PUBLIC_MESSAGES"
             printf("\n%s----- View Public Messages -----%s\n", COLOR_CYAN, COLOR_RESET);
             send(sock, "VIEW", strlen("VIEW"), 0);
 
